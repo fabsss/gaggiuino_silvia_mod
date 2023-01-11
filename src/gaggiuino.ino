@@ -600,10 +600,10 @@ void fillBoiler(float targetBoilerFullPressure) {
 
     if (currentState.smoothedPressure < targetBoilerFullPressure && timePassed <= BOILER_FILL_TIMEOUT) {
       lcdShowPopup("Filling boiler!");
-      openValve();
+      //openValve();
       setPumpToRawValue(80);
     } else if (!startupInitFinished) {
-      closeValve();
+      //closeValve();
       setPumpToRawValue(0);
       startupInitFinished = true;
     }

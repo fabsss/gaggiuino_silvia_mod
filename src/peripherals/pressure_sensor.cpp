@@ -28,13 +28,19 @@ float getPressure() {  //returns sensor pressure data
   // pressure gauge range 0-1.2MPa - 0-12 bar
   // 1 bar = 17.1 or 68.27 or 1777.8
 
+  // pressure gauge range 0-1.034 MPa - 0-10.34 bar
+  // 1 bar = 2063.18
+
   i2cResetState();
 
   previousPressure = currentPressure;
   #if defined SINGLE_BOARD
     currentPressure = (ADS.getValue() - 166) / 111.11f; // 12bit
   #else
-    currentPressure = (ADS.getValue() - 2666) / 1777.8f; // 16bit
+    // currentPressure = (ADS.getValue() - 2666) / 1777.8f; // 16bit
+    
+    // 10bar pressure sensor
+    currentPressure = (ADS.getValue() - 2666) / 2063.18f; // 16bit
   #endif
 
   return currentPressure;
