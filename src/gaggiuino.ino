@@ -606,6 +606,7 @@ void fillBoiler(float targetBoilerFullPressure) {
     &&  (currentState.smoothedPressure < targetBoilerFullPressure || currentState.weight > 2.f))
     {
       lcdShowPopup("Filling boiler!");
+      // disable openValve-call to prevent flushing during Filling in my Silvia Setup
       //openValve();
       setPumpToRawValue(80);
     } else if (!startupInitFinished) {
