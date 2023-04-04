@@ -1,6 +1,8 @@
+/* 09:32 15/03/2023 - change triggering comment */
 #include "lcd.h"
 #include "pindef.h"
 #include "log.h"
+#include <Arduino.h>
 
 EasyNex myNex(USART_LCD);
 volatile int lcdCurrentPageId;
@@ -135,7 +137,7 @@ void lcdUploadCfg(eepromValues_t &eepromCurrentValues) {
 }
 
 eepromValues_t lcdDownloadCfg(void) {
-  eepromValues_t lcdCfg;
+  eepromValues_t lcdCfg = {};
 
   lcdCfg.preinfusionState               = myNex.readNumber("piState");
   lcdCfg.preinfusionSec                 = myNex.readNumber("piSec");
@@ -215,14 +217,17 @@ void lcdSetUpTime(float val) {
   myNex.writeNum("systemUpTime", val);
 }
 
-void lcdSetTemperature(int val) {
+void lcdSetTemperature(uint16_t val) {
   myNex.writeNum("currentTemp", val);
 }
 
 void lcdSetWeight(float val) {
-  char tmp[5];
-  snprintf(tmp, sizeof(tmp), "%.1f", static_cast<double>(val));
-  myNex.writeStr("weight.txt", tmp);
+  char tmp[6];
+  int check = snprintf(tmp, sizeof(tmp), "%.1f", static_cast<double>(val));
+  if (check > 0 && static_cast<unsigned int>(check) <= sizeof(tmp)) {
+    strcat(tmp, "g");
+    myNex.writeStr("weight.txt", tmp);
+  }
 }
 
 void lcdSetFlow(int val) {

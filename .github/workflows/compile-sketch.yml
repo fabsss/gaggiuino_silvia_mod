@@ -2,9 +2,9 @@ name: Compile Sketch
 
 on:
   push:
-    branches: [dev, release/stm32-blackpill]
+    branches: [dev, release/stm32-blackpill, fix/*]
   pull_request:
-    branches: [dev, release/stm32-blackpill]
+    branches: [dev, release/stm32-blackpill, fix/*]
   # Manual trigger
   workflow_dispatch:
 
@@ -15,12 +15,12 @@ jobs:
 
     steps:
       - name: Checkout master
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: "16"
 
       - name: Install eclint
         run: |
@@ -30,29 +30,71 @@ jobs:
         run: |
           eclint check $(sh .eclint-files.sh)
 
-  compile-sketch:
+  compile:
+    name: Compilation
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
+    env:
+      BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - name: Main
+            command: "gaggia-lego-stlink"
+          - name: Scales
+            command: "scales-calibration-dfu"
     steps:
-      - name: Checkout master
-        uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v1
-
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - uses: actions/setup-python@v4
       - name: Install Platformio
         run: |
           python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio/master/scripts/get-platformio.py)"
-
-      - name: Build the main project
+      - name: Install sonar-scanner
+        uses: SonarSource/sonarcloud-github-c-cpp@v1
+      - name: Run build-wrapper on ${{ matrix.environment.name }}
         run: |
-          ~/.platformio/penv/bin/platformio run -e opto-dfu
-
-      - name: Build scales
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} ~/.platformio/penv/bin/platformio run -e ${{ matrix.environment.command }}
+        env:
+          PLATFORMIO_BUILD_SRC_FLAGS: -Wdouble-promotion -Wall -Werror
+      - name: Run sonar-scanner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          ~/.platformio/penv/bin/platformio run -e scales-calibration-dfu
+          sonar-scanner --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}"
 
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Platformio
+        run: |
+          python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio/master/scripts/get-platformio.py)"
       - name: Run tests
         run: |
           ~/.platformio/penv/bin/platformio test -e test
+
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - "gaggia-lego-stlink"
+          - "scales-calibration-stlink"
+          # - "uart-stm"
+          # - "uart-esp"
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Platformio
+        run: |
+          python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio/master/scripts/get-platformio.py)"
+      - name: Run static analysis on ${{ matrix.environment }}
+        run: |
+          ~/.platformio/penv/bin/platformio check -e ${{ matrix.environment }} --fail-on-defect medium --fail-on-defect high

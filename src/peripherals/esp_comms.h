@@ -1,3 +1,4 @@
+/* 09:32 15/03/2023 - change triggering comment */
 #ifndef ESP_COMMS_H
 #define ESP_COMMS_H
 
@@ -7,7 +8,7 @@ void espCommsInit();
 
 void espCommsReadData();
 
-void espCommsSendSensorData(SensorState& state, bool brewActive, bool steamActive, uint32_t frequency = 1000);
+void espCommsSendSensorData(const SensorState& state, uint32_t frequency = 1000);
 void espCommsSendShotData(ShotSnapshot& shotData, uint32_t frequency = 100);
 
 void onProfileReceived(Profile& profile);

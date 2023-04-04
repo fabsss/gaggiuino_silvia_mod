@@ -1,3 +1,4 @@
+/* 09:32 15/03/2023 - change triggering comment */
 #include "pressure_sensor.h"
 #include "pindef.h"
 #include "ADS1X15.h"
@@ -32,7 +33,7 @@ float getPressure() {  //returns sensor pressure data
   // pressure gauge range 0-1.034 MPa - 0-10.34 bar
   // 1 bar = 2063.18
 
-  i2cResetState();
+  getAdsError();
 
   previousPressure = currentPressure;
   #if defined SINGLE_BOARD
@@ -47,32 +48,38 @@ float getPressure() {  //returns sensor pressure data
   return currentPressure;
 }
 
-bool isPressureRaising() {
-  return currentPressure > previousPressure + 0.05f;
-}
+void getAdsError() {
+  // Reset the hw i2c to try and recover comms
+  // on fail to do so throw error
+  i2cResetState();
 
-bool isPressureFalling() {
-  return currentPressure < previousPressure - 0.05f;
-}
-
-bool isPressureFallingFast() {
-  return currentPressure < previousPressure - 0.1f;
-}
-
-int8_t getAdsError() {
-  return ADS.getError();
+  // Throw error code on ADS malfunction/miswiring
+  // Invalid Voltage error code: -100
+  // Invalid gain error code: 255
+  // Invalid mode error code: 254
+  short result = ADS.getError();
+  if (result == 0) return;
+  char tmp[25];
+  unsigned int check = snprintf(tmp, sizeof(tmp), "ADS error code: %i", result);
+  if (check > 0 && check <= sizeof(tmp)) {
+    lcdShowPopup(tmp);
+  }
 }
 
 //Serial.print(digitalRead(PIN_SCL));    //should be HIGH
 //Serial.println(digitalRead(PIN_SDA));   //should be HIGH, is LOW on stuck I2C bus
-
+// ERROR CODE 1: I2C bus error. Could not clear sclPin clock line held low
+// ERROR CODE 2: I2C bus error. Could not clear. sclPin clock line held low by slave clock for > 2sec
+// ERROR CODE 3: I2C bus error. Could not clear. sdaPin data line held low
 void i2cResetState() {
   if(digitalRead(hw_SCL) != HIGH || digitalRead(hw_SDA) != HIGH || !ADS.isConnected()) {
     LOG_INFO("Reset I2C pins");
     short result = I2C_ClearBus(hw_SDA, hw_SCL);
     char tmp[25];
-    snprintf(tmp, sizeof(tmp), "I2C error code: %i", result);
-    result == 0 ? adsInit() : lcdShowPopup(tmp);
+    unsigned int check = snprintf(tmp, sizeof(tmp), "I2C error code: %i", result);
+    if (check > 0 && check <= sizeof(tmp)) {
+      result == 0 ? adsInit() : lcdShowPopup(tmp);
+    }
     delay(50);
   }
 }

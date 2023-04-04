@@ -1,3 +1,4 @@
+/* 09:32 15/03/2023 - change triggering comment */
 #ifndef PROFILING_PHASES_H
 #define PROFILING_PHASES_H
 
@@ -5,7 +6,7 @@
 #include "sensors_state.h"
 #include <vector>
 
-enum PHASE_TYPE {
+enum class PHASE_TYPE {
   PHASE_TYPE_FLOW,
   PHASE_TYPE_PRESSURE
 };
@@ -42,9 +43,9 @@ struct Transition {
   TransitionCurve curve;
   long time;
 
-  Transition(): start(-1), end(-1), curve(INSTANT), time(0) {}
-  Transition(float start, float end, TransitionCurve curve = LINEAR, long time = 0): start(start), end(end), curve(curve), time(time) {}
-  Transition(float value):  start(value), end(value), curve(INSTANT), time(0) {}
+  Transition(): start(-1), end(-1), curve(TransitionCurve::INSTANT), time(0) {}
+  Transition(float start, float end, TransitionCurve curve = TransitionCurve::LINEAR, long time = 0): start(start), end(end), curve(curve), time(time) {}
+  Transition(float value):  start(value), end(value), curve(TransitionCurve::INSTANT), time(0) {}
 };
 
 struct Phase {
@@ -63,7 +64,7 @@ struct GlobalStopConditions {
   float weight = -1;
   float waterPumped = -1;
 
-  bool isReached(SensorState& state, long timeInShot);
+  bool isReached(const SensorState& state, long timeInShot);
 };
 
 struct Profile {
@@ -120,6 +121,6 @@ public:
 
 // Helper functions
 
-ShotSnapshot buildShotSnapshot(uint32_t timeInShot, SensorState& state, CurrentPhase& phase);
+ShotSnapshot buildShotSnapshot(uint32_t timeInShot, const SensorState& state, CurrentPhase& phase);
 
 #endif
