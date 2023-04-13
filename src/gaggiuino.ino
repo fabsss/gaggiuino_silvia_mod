@@ -657,51 +657,11 @@ static inline void systemHealthCheck(float pressureThreshold) {
     }
   }
 
-  if (isBoilerFillPhase(getTimeSinceInit()) && !isSwitchOn()) {
-    fillBoilerUntilThreshod(getTimeSinceInit());
-  }
-  else if (isSwitchOn()) {
-    lcdShowPopup("Brew Switch ON!");
-  }
-#else
-  startupInitFinished = true;
-#endif
-}
-
-bool isBoilerFillPhase(unsigned long elapsedTime) {
-  return static_cast<SCREEN_MODES>(lcdCurrentPageId) == SCREEN_MODES::SCREEN_home && elapsedTime >= BOILER_FILL_START_TIME;
-}
-
-bool isBoilerFull(unsigned long elapsedTime) {
-  bool boilerFull = false;
-  if (elapsedTime > BOILER_FILL_START_TIME + 1000UL) {
-    boilerFull =  (previousSmoothedPressure - currentState.smoothedPressure > -0.02f)
-                &&
-                  (previousSmoothedPressure - currentState.smoothedPressure < 0.001f);
-  }
-
-  return elapsedTime >= BOILER_FILL_TIMEOUT || boilerFull;
-}
-
-// Function to track time since system has started
-unsigned long getTimeSinceInit() {
-  static unsigned long startTime = millis();
-  return millis() - startTime;
-}
-
-// Checks if Brew switch is ON
-bool isSwitchOn() {
-  return currentState.brewSwitchState && static_cast<SCREEN_MODES>(lcdCurrentPageId) == SCREEN_MODES::SCREEN_home;
-}
-
-void fillBoilerUntilThreshod(unsigned long elapsedTime) {
-  if (elapsedTime >= BOILER_FILL_TIMEOUT) {
-    startupInitFinished = true;
-    return;
-  }
-
-  if (isBoilerFull(elapsedTime)) {
-    closeValve();
+  /*Shut down heaters if steam has been ON and unused fpr more than 10 minutes.*/
+  while (currentState.isSteamForgottenON) {
+    //Reloading the watchdog timer, if this function fails to run MCU is rebooted
+    watchdogReload();
+    lcdShowPopup("TURN STEAM OFF NOW!");
     setPumpOff();
     setBoilerOff();
     setSteamBoilerRelayOff();
@@ -844,27 +804,6 @@ static void cpsInit(eepromValues_t &eepromValues) {
   } else if (cps > 0) { // 50 Hz
     eepromValues.powerLineFrequency = 50u;
   }
-
-  lcdShowPopup("Filling boiler!");
-  openValve();
-  setPumpToRawValue(80);
-}
-
-static void updateStartupTimer(void) {
-  lcdSetUpTime(getTimeSinceInit() / 1000);
-}
-
-static void cpsInit(eepromValues_t &eepromValues) {
-  int cps = getCPS();
-  if (cps > 110) { // double 60 Hz
-    eepromValues.powerLineFrequency = 60u;
-  } else if (cps > 80) { // double 50 Hz
-    eepromValues.powerLineFrequency = 50u;
-  } else if (cps > 55) { // 60 Hz
-    eepromValues.powerLineFrequency = 60u;
-  } else if (cps > 0) { // 50 Hz
-    eepromValues.powerLineFrequency = 50u;
-  }
 }
 
 static void calibratePump(void) {
@@ -876,21 +815,25 @@ static void calibratePump(void) {
   CALIBRATE_PHASES:
   lcdShowPopup(!recalibrating ? "Calibrating pump!" : "Re-calibrating!") ;
   for (int phase = 0; phase < 2; phase++) {
-    watchdogReload();
     openValve();
-    delay(1500);
+    delay(500);
     sensorsReadPressure();
+    // closeValve();
+    setPumpToRawValue(20);
+    delay(1000);
 
     unsigned long loopTimeout = millis() + 1500L;
     // Wait for pressure to reach desired level.
-    while (currentState.smoothedPressure < 0.95f) {
+    while (currentState.smoothedPressure < 1.5f) {
+      lcdRefresh();
       watchdogReload();
       setPumpToRawValue(50);
       if (currentState.smoothedPressure < 0.05f) {
         getAndResetClickCounter();
       }
+
       sensorsReadPressure();
-      lcdRefresh();
+
       // Exit loop if timeout is reached.
       if (millis() > loopTimeout) {
         break;
@@ -902,7 +845,6 @@ static void calibratePump(void) {
     sensorsReadPressure();
     lcdSetPressure(currentState.smoothedPressure);
     lcdRefresh();
-    openValve();
 
     // Switch pump phase for next calibration.
     if (phase < 1) pumpPhaseShift();
@@ -910,88 +852,21 @@ static void calibratePump(void) {
 
   // Determine which phase has fewer clicks.
   long phaseDiffSanityCheck = systemState.pumpClicks[1] - systemState.pumpClicks[0];
-  if ( systemState.pumpCalibrationRetries < 4 ) {
-      if ((phaseDiffSanityCheck >= -2 && phaseDiffSanityCheck <= 2) || systemState.pumpClicks[0] <= 2 || systemState.pumpClicks[1] <= 2) {
-      recalibrating = true;
-      systemState.pumpCalibrationRetries++;
-      goto CALIBRATE_PHASES;
-    }
+  if (systemState.pumpCalibrationRetries < 4 && phaseDiffSanityCheck > -2 && phaseDiffSanityCheck < 2) {
+    recalibrating = true;
+    systemState.pumpCalibrationRetries++;
+    goto CALIBRATE_PHASES;
   }
 
   if (systemState.pumpClicks[1] < systemState.pumpClicks[0]) {
     pumpPhaseShift();
-    lcdShowPopup("Pump phase [2]");
+    lcdShowPopup("Phase 2 selected");
   }
   else if (systemState.pumpCalibrationRetries >= 4) {
-    lcdShowPopup("Calibration failed!");
+    lcdShowPopup("Calibration unsuccessful!");
     systemState.startupInitFinished = true;
   }
-  else lcdShowPopup("Pump phase [1]");
-
-  // Set this var to true so phase is never repeated.
-  systemState.pumpCalibrationFinished = true;
-}
-
-static void calibratePump(void) {
-  if (systemState.pumpCalibrationFinished) {
-    return;
-  }
-  bool recalibrating = false;
-  // Calibrate pump in both phases
-  CALIBRATE_PHASES:
-  lcdShowPopup(!recalibrating ? "Calibrating pump!" : "Re-calibrating!") ;
-  for (int phase = 0; phase < 2; phase++) {
-    watchdogReload();
-    openValve();
-    delay(1500);
-    sensorsReadPressure();
-
-    unsigned long loopTimeout = millis() + 1500L;
-    // Wait for pressure to reach desired level.
-    while (currentState.smoothedPressure < 0.95f) {
-      watchdogReload();
-      setPumpToRawValue(50);
-      if (currentState.smoothedPressure < 0.05f) {
-        getAndResetClickCounter();
-      }
-      sensorsReadPressure();
-      lcdRefresh();
-      // Exit loop if timeout is reached.
-      if (millis() > loopTimeout) {
-        break;
-      }
-    }
-
-    systemState.pumpClicks[phase] = getAndResetClickCounter();
-    setPumpToRawValue(0);
-    sensorsReadPressure();
-    lcdSetPressure(currentState.smoothedPressure);
-    lcdRefresh();
-    openValve();
-
-    // Switch pump phase for next calibration.
-    if (phase < 1) pumpPhaseShift();
-  }
-
-  // Determine which phase has fewer clicks.
-  long phaseDiffSanityCheck = systemState.pumpClicks[1] - systemState.pumpClicks[0];
-  if ( systemState.pumpCalibrationRetries < 4 ) {
-      if ((phaseDiffSanityCheck >= -2 && phaseDiffSanityCheck <= 2) || systemState.pumpClicks[0] <= 2 || systemState.pumpClicks[1] <= 2) {
-      recalibrating = true;
-      systemState.pumpCalibrationRetries++;
-      goto CALIBRATE_PHASES;
-    }
-  }
-
-  if (systemState.pumpClicks[1] < systemState.pumpClicks[0]) {
-    pumpPhaseShift();
-    lcdShowPopup("Pump phase [2]");
-  }
-  else if (systemState.pumpCalibrationRetries >= 4) {
-    lcdShowPopup("Calibration failed!");
-    systemState.startupInitFinished = true;
-  }
-  else lcdShowPopup("Pump phase [1]");
+  else lcdShowPopup("Phase 1 selected");
 
   // Set this var to true so phase is never repeated.
   systemState.pumpCalibrationFinished = true;
