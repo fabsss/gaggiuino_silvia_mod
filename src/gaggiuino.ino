@@ -803,7 +803,8 @@ static void fillBoilerUntilThreshod(unsigned long elapsedTime) {
   }
 
   lcdShowPopup("Filling boiler!");
-  openValve();
+  // Do not open valve when filling)
+  //openValve();
   setPumpToRawValue(35);
 }
 
