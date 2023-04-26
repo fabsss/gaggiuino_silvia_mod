@@ -74,16 +74,16 @@ void lcdUploadCfg(eepromValues_t &eepromCurrentValues) {
   myNex.writeNum("brewAuto.flowRampBox.val", eepromCurrentValues.flowProfileCurveSpeed);
 
   myNex.writeNum("piState", eepromCurrentValues.preinfusionState);
-  myNex.writeNum("brewAuto.bt0.val", eepromCurrentValues.preinfusionState);
+  // myNex.writeNum("brewAuto.bt0.val", eepromCurrentValues.preinfusionState);
 
   myNex.writeNum("ppState", eepromCurrentValues.pressureProfilingState);
-  myNex.writeNum("brewAuto.bt1.val", eepromCurrentValues.pressureProfilingState);
+  // myNex.writeNum("brewAuto.bt1.val", eepromCurrentValues.pressureProfilingState);
 
   myNex.writeNum("ppFlowState", eepromCurrentValues.flowProfileState);
-  myNex.writeNum("brewAuto.bt2.val", eepromCurrentValues.flowProfileState);
+  // myNex.writeNum("brewAuto.bt2.val", eepromCurrentValues.flowProfileState);
 
   myNex.writeNum("piFlowState", eepromCurrentValues.preinfusionFlowState);
-  myNex.writeNum("brewAuto.bt3.val", eepromCurrentValues.preinfusionFlowState);
+  // myNex.writeNum("brewAuto.bt3.val", eepromCurrentValues.preinfusionFlowState);
 
 
   myNex.writeNum("piSec", eepromCurrentValues.preinfusionSec);
@@ -133,7 +133,8 @@ void lcdUploadCfg(eepromValues_t &eepromCurrentValues) {
 
   myNex.writeNum("switchPhaseOnThreshold", eepromCurrentValues.switchPhaseOnThreshold);
   myNex.writeNum("brewSettings.pBelow.val", eepromCurrentValues.switchPhaseOnPressureBelow * 10.f);
-  myNex.writeNum("firstDrip", eepromCurrentValues.switchPhaseOnFirstDrops);
+  myNex.writeNum("brewSettings.wAbove.val", eepromCurrentValues.switchOnWeightAbove * 10.f);
+  myNex.writeNum("brewSettings.wPmpd.val", eepromCurrentValues.switchOnWaterPumped * 10.f);
 
   myNex.writeNum("shotState", eepromCurrentValues.stopOnWeightState);
   myNex.writeNum("shotDose", eepromCurrentValues.shotDose * 10.f);
@@ -187,7 +188,8 @@ eepromValues_t lcdDownloadCfg(void) {
   lcdCfg.brewDeltaState                 = myNex.readNumber("deltaState");
   lcdCfg.switchPhaseOnThreshold         = myNex.readNumber("switchPhaseOnThreshold");
   lcdCfg.switchPhaseOnPressureBelow     = myNex.readNumber("brewSettings.pBelow.val") / 10.f;
-  lcdCfg.switchPhaseOnFirstDrops        = myNex.readNumber("firstDrip");
+  lcdCfg.switchOnWeightAbove            = myNex.readNumber("brewSettings.wAbove.val") / 10.f;
+  lcdCfg.switchOnWaterPumped            = myNex.readNumber("brewSettings.wPmpd.val") / 10.f;
 
   lcdCfg.scalesF1                       = myNex.readNumber("morePower.lc1.val");
   lcdCfg.scalesF2                       = myNex.readNumber("morePower.lc2.val");
@@ -275,8 +277,8 @@ void lcdWarmupStateStop(void) {
   myNex.writeNum("warmupState", 0);
 }
 
-void trigger1(void) { lcdTrigger1(); }
-void trigger2(void) { lcdTrigger2(); }
-void trigger3(void) { lcdTrigger3(); }
-void trigger4(void) { lcdTrigger4(); }
-void trigger5(void) { lcdTrigger5(); }
+void trigger1(void) { lcdSaveSettingsTrigger(); }
+void trigger2(void) { lcdScalesTareTrigger(); }
+void trigger3(void) { lcdHomeScreenScalesTrigger(); }
+void trigger4(void) { lcdBrewGraphScalesTareTrigger(); }
+void trigger5(void) { lcdPumpPhaseShitfTrigger(); }
