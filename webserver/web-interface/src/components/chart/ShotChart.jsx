@@ -30,11 +30,10 @@ ChartJS.register(
 
 function mapDataPointToLabel(dataPoint) {
   if (!dataPoint.timeInShot) {
-    return '00:00';
+    return 0;
   }
-  const seconds = Math.floor(dataPoint.timeInShot / 1000);
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0') % 60}`;
+
+  return dataPoint.timeInShot / 1000;
 }
 
 function getLabels(input) {
@@ -103,28 +102,41 @@ function mapToChartData(input, theme) {
   };
 }
 
-function popDataFromChartData(chartData) {
-  chartData.labels.shift();
-  chartData.datasets.forEach((dataset) => dataset.data.shift());
-}
+// function popDataFromChartData(chartData) {
+//   chartData.labels.shift();
+//   chartData.datasets.forEach((dataset) => dataset.data.shift());
+// }
 
-function addDataPointToChartData(chartData, dataPoint, maxLength) {
-  while (chartData.labels.length >= maxLength) {
-    popDataFromChartData(chartData);
-  }
+function addDataPointToChartData(chartData, dataPoint) {
+  // while (maxLength > 0 && chartData.labels.length >= maxLength) {
+  //   popDataFromChartData(chartData);
+  // }
   if (!dataPoint) {
     return;
   }
-  chartData.labels.push(mapDataPointToLabel(dataPoint));
+
+  // If we pull a second shot while he graph is open push the
+  // datapoints of the previous shot back in time so that the new shot
+  // begins from time=0sec
+  const newTimeLabel = mapDataPointToLabel(dataPoint);
+  const previousMaxTimeLabel = chartData.labels[chartData.labels.length - 1] || 0;
+  if (previousMaxTimeLabel > newTimeLabel) {
+    chartData.labels.forEach((label, index) => {
+      // eslint-disable-next-line no-param-reassign
+      chartData.labels[index] = label - previousMaxTimeLabel;
+    });
+  }
+
+  chartData.labels.push(newTimeLabel);
   chartData.datasets[0].data.push(dataPoint.temperature);
   chartData.datasets[1].data.push(dataPoint.pressure);
   chartData.datasets[2].data.push(dataPoint.pumpFlow);
   chartData.datasets[3].data.push(dataPoint.shotWeight);
-  chartData.datasets[5].data.push(dataPoint.targetPressure);
-  chartData.datasets[4].data.push(dataPoint.targetPumpFlow);
+  chartData.datasets[4].data.push(dataPoint.targetPressure);
+  chartData.datasets[5].data.push(dataPoint.targetPumpFlow);
 }
 
-function Chart({ data, newDataPoint, maxLength }) {
+function Chart({ data, newDataPoint }) {
   const chartRef = useRef(null);
   const theme = useTheme();
   const config = useMemo(() => getShotChartConfig(theme), [theme]);
@@ -138,7 +150,7 @@ function Chart({ data, newDataPoint, maxLength }) {
   }, [data]);
 
   useEffect(() => {
-    addDataPointToChartData(chartData, newDataPoint, maxLength);
+    addDataPointToChartData(chartData, newDataPoint);
     chartRef.current.data.labels = chartData.labels;
     chartData.datasets.forEach((dataset, index) => {
       chartRef.current.data.datasets[index].data = dataset.data;
@@ -171,11 +183,11 @@ export const ShotChartDataPointType = PropTypes.shape({
 Chart.propTypes = {
   data: PropTypes.arrayOf(ShotChartDataPointType),
   newDataPoint: ShotChartDataPointType,
-  maxLength: PropTypes.number,
+  // maxLength: PropTypes.number,
 };
 
 Chart.defaultProps = {
   data: undefined,
   newDataPoint: undefined,
-  maxLength: 1000,
+  // maxLength: undefined,
 };

@@ -4,9 +4,9 @@
 
 struct SystemState {
   bool startupInitFinished;
-  bool pumpCalibrationFinished;
-  long pumpClicks[2];
-  short pumpCalibrationRetries;
+  bool tofReady;
+  uint16_t tofReading;
+  uint8_t ledColours[3];
 };
 
 #endif

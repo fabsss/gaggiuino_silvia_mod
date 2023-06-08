@@ -6,17 +6,15 @@ struct SensorState {
   bool brewSwitchState;
   bool steamSwitchState;
   bool hotWaterSwitchState;
-  float temperature;
-  float pressure;
-  bool isPressureFalling;
-  bool isPressureFallingFast;
-  bool isPressureRising;
-  bool isPressureRisingFast;
-  bool isPressureMaxed;
-  bool isPumpFlowRisingFast;
-  bool isPumpFlowFallingFast;
   bool isSteamForgottenON;
-  float pumpFlow;
+  float temperature;          // °C
+  /* calculated water temperature as wanted but not guaranteed
+  due to boiler having a hard limit of 4ml/s heat capacity */
+  float waterTemperature;     // °C
+  float pressure;             // bar
+  float pressureChangeSpeed;  // bar/s
+  float pumpFlow;             // ml/s
+  float pumpFlowChangeSpeed;  // ml/s^2
   float waterPumped;
   float weightFlow;
   float weight;
@@ -26,6 +24,7 @@ struct SensorState {
   float smoothedWeightFlow;
   float consideredFlow;
   long pumpClicks;
+  uint16_t waterLvl;
 };
 
 struct SensorStateSnapshot {

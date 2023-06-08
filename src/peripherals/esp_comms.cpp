@@ -15,7 +15,7 @@ namespace {
 }
 
 void espCommsInit() {
-  USART_ESP.begin(115200);
+  USART_ESP.begin(460800);
 
   // mcuComms.setDebugPort(&USART_ESP);
   McuCommsSingleton::getInstance().begin(USART_ESP);
@@ -25,7 +25,7 @@ void espCommsInit() {
 }
 
 void espCommsReadData() {
-  McuCommsSingleton::getInstance().readData();
+  McuCommsSingleton::getInstance().readDataAndTick();
 }
 
 volatile uint32_t sensorDataTimer = 0;
@@ -35,7 +35,7 @@ void espCommsSendSensorData(const SensorState& state, uint32_t frequency) {
     SensorStateSnapshot sensorSnapshot = SensorStateSnapshot{
       .brewActive = state.brewSwitchState,
       .steamActive = state.steamSwitchState,
-      .temperature = state.temperature,
+      .temperature = state.waterTemperature,
       .pressure = state.smoothedPressure,
       .pumpFlow = state.smoothedPumpFlow,
       .weightFlow = state.smoothedWeightFlow,
