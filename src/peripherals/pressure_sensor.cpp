@@ -39,10 +39,10 @@ float getPressure() {  //returns sensor pressure data
   #if defined SINGLE_BOARD
     currentPressure = (ADS.getValue() - 166) / 111.11f; // 12bit
   #else
-    // currentPressure = (ADS.getValue() - 2666) / 1777.8f; // 16bit
+    currentPressure = (ADS.getValue() - 2666) / 1777.8f; // 16bit
     
     // 10bar pressure sensor
-    currentPressure = (ADS.getValue() - 2666) / 2063.18f; // 16bit
+    //currentPressure = (ADS.getValue() - 2666) / 2063.18f; // 16bit
   #endif
 
   return currentPressure;
